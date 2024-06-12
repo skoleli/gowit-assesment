@@ -6,63 +6,100 @@ import (
 	"time"
 )
 
+const sortModeTime = "time"
+const sortModeStatus = "status"
+
+// Changed Ticket struct's field types
 type Ticket struct {
-	ID          string
+	ID          int
 	Title       string
 	Description string
 	Status      string
-	CreatedAt   string
-	Timezone    string
+	CreatedAt   time.Time
 }
 
-func parseTimeInUTC(timeStr, timezone string) time.Time {
-	loc, err := time.LoadLocation(timezone)
-	if err != nil {
-		loc = time.UTC
-	}
-	localTime, _ := time.ParseInLocation(time.RFC3339, timeStr, loc)
-	return localTime.UTC()
+// implemented builder design pattern to avoid long ticket creation lines and simplify the logic
+type TicketBuilder struct {
+	nextId int
 }
-func BadSortTickets(tickets []Ticket, mode string) []Ticket {
-	if mode == "time" {
-		sort.SliceStable(tickets, func(i, j int) bool {
-			createdAtI := parseTimeInUTC(tickets[i].CreatedAt, tickets[i].Timezone)
-			createdAtJ := parseTimeInUTC(tickets[j].CreatedAt, tickets[j].Timezone)
-			return createdAtI.After(createdAtJ)
-		})
-	} else if mode == "status" {
-		sort.SliceStable(tickets, func(i, j int) bool {
-			if tickets[i].Status == tickets[j].Status {
-				createdAtI := parseTimeInUTC(tickets[i].CreatedAt, tickets[i].Timezone)
-				createdAtJ := parseTimeInUTC(tickets[j].CreatedAt, tickets[j].Timezone)
-				return createdAtI.After(createdAtJ)
-			}
-			return tickets[i].Status < tickets[j].Status
-		})
-	} else {
-		// Default sorting by time
-		sort.SliceStable(tickets, func(i, j int) bool {
-			createdAtI := parseTimeInUTC(tickets[i].CreatedAt, tickets[i].Timezone)
-			createdAtJ := parseTimeInUTC(tickets[j].CreatedAt, tickets[j].Timezone)
-			return createdAtI.After(createdAtJ)
-		})
+
+func NewTicketBuilder() *TicketBuilder {
+	return &TicketBuilder{
+		nextId: 1,
 	}
+}
+
+func (tb *TicketBuilder) NewTicket(title string, description string, status string) Ticket {
+	ticket := Ticket{
+		ID:          tb.nextId,
+		Title:       title,
+		Description: description,
+		Status:      status,
+		CreatedAt:   time.Now(),
+	}
+	tb.nextId++
+	return ticket
+}
+
+/*
+ * commented this function out since it's no longer in use but it definetly
+ * needed an error handling logic. so i added it.
+ */
+// func parseTimeInUTC(timeStr, timezone string) (time.Time, error) {
+// 	loc, err := time.LoadLocation(timezone)
+// 	if err != nil {
+// 		loc = time.UTC
+// 	}
+// 	localTime, err := time.ParseInLocation(time.RFC3339, timeStr, loc)
+// 	return localTime.UTC(), err
+// }
+
+func BadSortTickets(tickets []Ticket, mode string) []Ticket {
+	if mode == sortModeStatus {
+		return sortTicketsByStatus(tickets)
+	} else { // shortened this since default sort is also by time.
+		return sortTicketsByTime(tickets)
+	}
+}
+
+func sortTicketsByTime(tickets []Ticket) []Ticket {
+	sort.SliceStable(tickets, func(i, j int) bool {
+		return tickets[i].CreatedAt.After(tickets[j].CreatedAt)
+	})
 	return tickets
 }
+
+func sortTicketsByStatus(tickets []Ticket) []Ticket {
+	sort.SliceStable(tickets, func(i, j int) bool {
+		if tickets[i].Status == tickets[j].Status {
+			return tickets[i].CreatedAt.After(tickets[j].CreatedAt)
+		}
+		return tickets[i].Status < tickets[j].Status
+	})
+	return tickets
+}
+
+func PrintTickets(tickets []Ticket) {
+	for _, ticket := range tickets {
+		fmt.Printf("%+v\n", ticket)
+	}
+}
+
 func main() {
+	ticketBuilder := NewTicketBuilder()
+
 	tickets := []Ticket{
-		{ID: "1", Title: "Ticket 1", Description: "First ticket", Status: "closed", CreatedAt: "2023-06-05T10:00:00-04:00", Timezone: "America/New_York"},
-		{ID: "2", Title: "Ticket 2", Description: "Second ticket", Status: "open", CreatedAt: "2024-06-05T15:00:00+02:00", Timezone: "Europe/Berlin"},
-		{ID: "3", Title: "Ticket 3", Description: "Third ticket", Status: "in-progress", CreatedAt: "2024-06-05T12:00:00+09:00", Timezone: "Asia/Tokyo"},
+		ticketBuilder.NewTicket("Ticket 1", "First ticket", "closed"),
+		ticketBuilder.NewTicket("Ticket 2", "Second ticket", "open"),
+		ticketBuilder.NewTicket("Ticket 3", "Third ticket", "in-progress"),
 	}
-	sortedByTime := BadSortTickets(tickets, "time")
+
+	sortedByTime := BadSortTickets(tickets, sortModeTime)
 	fmt.Println("Sorted by Time:")
-	for _, ticket := range sortedByTime {
-		fmt.Printf("%+v\n", ticket)
-	}
-	sortedByStatus := BadSortTickets(tickets, "status")
+	PrintTickets(sortedByTime)
+
+	sortedByStatus := BadSortTickets(tickets, sortModeStatus)
 	fmt.Println("\nSorted by Status:")
-	for _, ticket := range sortedByStatus {
-		fmt.Printf("%+v\n", ticket)
-	}
+	PrintTickets(sortedByStatus)
+
 }
