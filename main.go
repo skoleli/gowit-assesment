@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"sort"
 	"time"
+	"log"
+
+	"github.com/go-playground/validator/v10"
+
 )
 
 const sortModeTime = "time"
@@ -12,24 +16,26 @@ const sortModeStatus = "status"
 // Changed Ticket struct's field types
 type Ticket struct {
 	ID          int
-	Title       string
+	Title       string `validate:"required,min=2"`
 	Description string
-	Status      string
+	Status      string `validate:"required,min=1"`
 	CreatedAt   time.Time
 }
 
 // implemented builder design pattern to avoid long ticket creation lines and simplify the logic
 type TicketBuilder struct {
 	nextId int
+	validator *validator.Validate
 }
 
 func NewTicketBuilder() *TicketBuilder {
 	return &TicketBuilder{
 		nextId: 1,
+		validator: validator.New(),
 	}
 }
 
-func (tb *TicketBuilder) NewTicket(title string, description string, status string) Ticket {
+func (tb *TicketBuilder) NewTicket(title string, description string, status string) (Ticket, error) {
 	ticket := Ticket{
 		ID:          tb.nextId,
 		Title:       title,
@@ -38,11 +44,19 @@ func (tb *TicketBuilder) NewTicket(title string, description string, status stri
 		CreatedAt:   time.Now(),
 	}
 	tb.nextId++
-	return ticket
+
+	err:= tb.validator.Struct(ticket)
+	if err!=nil{
+		tb.nextId--
+		return Ticket{}, fmt.Errorf("Validation failure: %w", err)
+	}
+	return ticket,nil
 }
 
 /*
- * commented this function out since it's no longer in use but it definetly
+ * commented this function out since it's no longer in use 
+ * since CreatedAt field's type is time.Time,
+ * but it definetly
  * needed an error handling logic. so i added it.
  */
 // func parseTimeInUTC(timeStr, timezone string) (time.Time, error) {
@@ -87,11 +101,20 @@ func PrintTickets(tickets []Ticket) {
 
 func main() {
 	ticketBuilder := NewTicketBuilder()
+	tickets := []Ticket{}
+	ticketValues := [][]string{
+		{"Ticket 1", "First ticket", "closed"},
+		{"Ticket 2", "Second ticket", "open"},
+		{"Ticket 3", "Third ticket", "in-progress"},
+	}
 
-	tickets := []Ticket{
-		ticketBuilder.NewTicket("Ticket 1", "First ticket", "closed"),
-		ticketBuilder.NewTicket("Ticket 2", "Second ticket", "open"),
-		ticketBuilder.NewTicket("Ticket 3", "Third ticket", "in-progress"),
+	for _, value := range ticketValues{
+		newTicket, err := ticketBuilder.NewTicket(value[0], value[1], value[2])
+		if err!=nil{
+			log.Printf("Failed to build ticket (%s, %s, %s) | %v\n", value[0], value[1],value[2], err )
+		}else{
+			tickets = append(tickets, newTicket)
+		}
 	}
 
 	sortedByTime := BadSortTickets(tickets, sortModeTime)
@@ -101,5 +124,4 @@ func main() {
 	sortedByStatus := BadSortTickets(tickets, sortModeStatus)
 	fmt.Println("\nSorted by Status:")
 	PrintTickets(sortedByStatus)
-
 }
