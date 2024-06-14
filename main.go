@@ -2,21 +2,20 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"time"
-	"log"
 
 	"github.com/go-playground/validator/v10"
-
 )
 
 const sortModeTime = "time"
 const sortModeStatus = "status"
 
-// Changed Ticket struct's field types
+// Changed Ticket struct's field types and added a validation logic
 type Ticket struct {
 	ID          int
-	Title       string `validate:"required,min=2"`
+	Title       string `validate:"required,min=1"`
 	Description string
 	Status      string `validate:"required,min=1"`
 	CreatedAt   time.Time
@@ -24,13 +23,13 @@ type Ticket struct {
 
 // implemented builder design pattern to avoid long ticket creation lines and simplify the logic
 type TicketBuilder struct {
-	nextId int
+	nextId    int
 	validator *validator.Validate
 }
 
 func NewTicketBuilder() *TicketBuilder {
 	return &TicketBuilder{
-		nextId: 1,
+		nextId:    1,
 		validator: validator.New(),
 	}
 }
@@ -45,16 +44,16 @@ func (tb *TicketBuilder) NewTicket(title string, description string, status stri
 	}
 	tb.nextId++
 
-	err:= tb.validator.Struct(ticket)
-	if err!=nil{
+	err := tb.validator.Struct(ticket)
+	if err != nil {
 		tb.nextId--
-		return Ticket{}, fmt.Errorf("Validation failure: %w", err)
+		return Ticket{}, fmt.Errorf("validation failure: %w", err)
 	}
-	return ticket,nil
+	return ticket, nil
 }
 
 /*
- * commented this function out since it's no longer in use 
+ * commented this function out since it's no longer in use
  * since CreatedAt field's type is time.Time,
  * but it definetly
  * needed an error handling logic. so i added it.
@@ -108,11 +107,11 @@ func main() {
 		{"Ticket 3", "Third ticket", "in-progress"},
 	}
 
-	for _, value := range ticketValues{
+	for _, value := range ticketValues {
 		newTicket, err := ticketBuilder.NewTicket(value[0], value[1], value[2])
-		if err!=nil{
-			log.Printf("Failed to build ticket (%s, %s, %s) | %v\n", value[0], value[1],value[2], err )
-		}else{
+		if err != nil {
+			log.Printf("Failed to build ticket (%s, %s, %s) | %v\n", value[0], value[1], value[2], err)
+		} else {
 			tickets = append(tickets, newTicket)
 		}
 	}
